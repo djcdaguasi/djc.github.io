@@ -1,0 +1,907 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>MediConnect+ — National ID Unified (Preview Modal)</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: { mcblue: '#0b7285', mcgreen: '#117a65' }
+        }
+      }
+    }
+  </script>
+  <style>
+    body { font-family: Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial; }
+    .card-shadow { box-shadow: 0 8px 24px rgba(2,6,23,0.06); }
+    .sidebar-scroll { max-height: calc(100vh - 100px); overflow-y: auto; }
+    .field-label { font-size: .85rem; color: #374151; margin-bottom: .25rem; }
+    .modal-backdrop { background: rgba(2,6,23,0.45); }
+  </style>
+</head>
+<body class="bg-slate-50 text-slate-800">
+
+  <!-- Top Navbar: includes National ID search -->
+  <header class="fixed w-full z-40 bg-white border-b border-slate-200">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div class="flex justify-between items-center h-16">
+        <div class="flex items-center gap-4">
+          <div class="w-10 h-10 rounded-lg flex items-center justify-center text-white font-semibold" style="background:linear-gradient(135deg,#117a65,#0b7285);">MC+</div>
+          <div class="hidden sm:block">
+            <img src="logo.png" alt="MediConnect+ Logo" class="h-10 w-auto" onerror="this.style.display='none'"/>
+            <div class="text-xs text-slate-400 leading-3">Your Health, Connected</div>
+          </div>
+        </div>
+
+        <!-- Global National ID Search (unified entry point) -->
+        <div class="flex-1 px-6">
+          <div class="max-w-2xl mx-auto">
+            <div class="relative">
+              <input id="globalNationalId" type="search" placeholder="Search patient by National ID (e.g., Juan Dela Cruz) — press Enter or click Search" class="w-full rounded-full pl-4 pr-36 py-2 border border-slate-200 focus:ring-2 focus:ring-mcblue focus:border-transparent bg-white" />
+              <div class="absolute right-2 top-1/2 -translate-y-1/2 flex gap-2">
+                <button id="searchBtn" class="px-3 py-1.5 bg-mcgreen text-white rounded-full text-sm">Search</button>
+                <button id="registerBtn" class="px-3 py-1.5 bg-white border rounded-full text-sm">Register</button>
+              </div>
+            </div>
+            <!-- Search result message (shows when not found) -->
+            <div id="searchMessage" class="mt-2 text-sm text-amber-600 hidden"></div>
+          </div>
+        </div>
+
+        <div class="flex items-center gap-3">
+          <button id="notifBtn" class="relative p-2 rounded-full hover:bg-slate-100">
+            <svg class="w-6 h-6 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6 6 0 10-12 0v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/></svg>
+            <span id="notifCount" class="absolute -top-0 -right-0 bg-red-500 text-white text-[10px] px-[6px] py-[2px] rounded-full">3</span>
+          </button>
+
+          <div class="relative">
+            <button id="profileBtn" class="flex items-center gap-2 px-3 py-1.5 rounded-full hover:bg-slate-100">
+              <img id="profileImg" src="https://via.placeholder.com/40" alt="avatar" class="w-8 h-8 rounded-full object-cover" />
+              <div class="hidden md:block text-left">
+                <div id="profileName" class="text-sm font-medium">Dr. Santos</div>
+                <div class="text-xs text-slate-400">Cardiology</div>
+              </div>
+            </button>
+            <div id="profileMenu" class="hidden absolute right-0 mt-2 bg-white border rounded-md w-48 py-1 shadow-lg">
+              <a href="#" class="block px-4 py-2 text-sm hover:bg-slate-50" onclick="openPage('settings')">Settings</a>
+              <a href="#" class="block px-4 py-2 text-sm text-red-600 hover:bg-slate-50">Sign out</a>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- Layout -->
+  <div class="pt-20">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div class="grid grid-cols-12 gap-6">
+
+        <!-- Sidebar -->
+        <aside class="col-span-12 lg:col-span-3 xl:col-span-2 hidden lg:block">
+          <div class="sticky top-28 bg-white rounded-lg p-4 card-shadow sidebar-scroll">
+            <nav class="space-y-1">
+              <button class="w-full text-left flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-slate-50" onclick="openPage('dashboard')">
+                <span class="font-medium">Dashboard</span>
+              </button>
+              <button class="w-full text-left flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-slate-50" onclick="openPage('patients')">
+                <span class="font-medium">Patients</span><span class="ml-auto text-xs text-slate-400" id="totalPatients">--</span>
+              </button>
+              <button class="w-full text-left flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-slate-50" onclick="openPage('diagnosis')">
+                <span class="font-medium">Diagnosis</span>
+              </button>
+              <button class="w-full text-left flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-slate-50" onclick="openPage('prescriptions')">
+                <span class="font-medium">Prescriptions</span>
+              </button>
+              <button class="w-full text-left flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-slate-50" onclick="openPage('admin')">
+                <span class="font-medium">Admin Tools</span>
+              </button>
+            </nav>
+
+            <hr class="my-4" />
+            <div class="text-sm text-slate-500">
+              <div class="mb-2">Subscription</div>
+              <div class="bg-amber-50 text-amber-700 px-3 py-2 rounded">Pro • ₱50,000 / month</div>
+            </div>
+            <div class="mt-4 text-xs text-slate-400">
+              <div><b>Compliance:</b> NPC (RA 10173) • DOH eHealth</div>
+              <div class="mt-2"><b>Hosting:</b> DICT-accredited data center (demo)</div>
+            </div>
+          </div>
+        </aside>
+
+        <!-- Main content -->
+        <main class="col-span-12 lg:col-span-6 xl:col-span-7">
+          <div id="appContent" class="space-y-6">
+
+            <!-- Dashboard -->
+            <section id="page-dashboard" class="bg-white rounded-lg p-5 card-shadow">
+              <div class="flex justify-between items-center">
+                <div>
+                  <h2 class="text-lg font-semibold">Dashboard</h2>
+                  <p class="text-sm text-slate-500">Unified National ID search — use it as your entry point</p>
+                </div>
+                <div class="flex items-center gap-3">
+                  <button class="px-3 py-2 bg-white border rounded-lg text-sm" onclick="exportDemo()">Export</button>
+                  <button class="px-3 py-2 bg-mcgreen text-white rounded-lg" onclick="openAddPatientModal()">+ Add Patient</button>
+                </div>
+              </div>
+
+              <div class="mt-4 grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div class="p-4 bg-slate-50 rounded-lg">
+                  <div class="text-sm text-slate-500">Active Patients</div>
+                  <div id="statPatients" class="text-2xl font-bold">--</div>
+                </div>
+                <div class="p-4 bg-slate-50 rounded-lg">
+                  <div class="text-sm text-slate-500">Appointments Today</div>
+                  <div id="statAppts" class="text-2xl font-bold">--</div>
+                </div>
+                <div class="p-4 bg-slate-50 rounded-lg">
+                  <div class="text-sm text-slate-500">Pending Claims</div>
+                  <div id="statClaims" class="text-2xl font-bold">--</div>
+                </div>
+              </div>
+
+              <div class="mt-6">
+                <h3 class="text-sm font-semibold">Recent Activity</h3>
+                <div id="activityFeed" class="mt-3 space-y-4"></div>
+              </div>
+            </section>
+
+            <!-- Patients list -->
+            <section id="page-patients" class="hidden bg-white rounded-lg p-5 card-shadow">
+              <div class="flex justify-between items-center">
+                <div>
+                  <h2 class="text-lg font-semibold">Patients</h2>
+                  <p class="text-sm text-slate-500">All patients in the system</p>
+                </div>
+                <div class="flex items-center gap-3">
+                  <input id="patientSearch" type="text" placeholder="Search by name, Patient ID or National ID" class="rounded-lg border px-3 py-2" />
+                  <button class="px-3 py-2 bg-mcgreen text-white rounded-lg" onclick="renderPatientsTable()">Search</button>
+                </div>
+              </div>
+
+              <div class="mt-4 overflow-x-auto">
+                <table class="w-full text-left">
+                  <thead class="text-xs text-slate-500">
+                    <tr>
+                      <th class="p-3">Patient ID</th><th class="p-3">Name</th><th class="p-3">Age</th><th class="p-3">Last Visit</th><th class="p-3">Primary Doctor</th><th class="p-3">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody id="patientsTableBody"></tbody>
+                </table>
+              </div>
+            </section>
+
+            <!-- Patient profile -->
+            <section id="page-patient-profile" class="hidden bg-white rounded-lg p-5 card-shadow">
+              <div class="flex justify-between items-start gap-4">
+                <div class="flex gap-4">
+                  <img id="profilePic" src="https://via.placeholder.com/90" alt="avatar" class="w-24 h-24 rounded-lg object-cover" />
+                  <div>
+                    <h2 id="profileFullName" class="text-xl font-semibold">—</h2>
+                    <div class="text-sm text-slate-500" id="profileMeta">—</div>
+                    <div class="mt-2 text-sm text-slate-600" id="profileAddress">—</div>
+                  </div>
+                </div>
+
+                <div class="flex gap-2">
+                  <button class="px-3 py-2 bg-white border rounded-lg" onclick="openPage('patients')">Back to list</button>
+                  <button class="px-3 py-2 bg-mcgreen text-white rounded-lg" onclick="showAdmitModal()">Admit Patient</button>
+                  <button class="px-3 py-2 bg-white border rounded-lg" onclick="openPage('diagnosis')">Add Diagnosis</button>
+                </div>
+              </div>
+
+              <div class="mt-6 grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div class="p-4 bg-slate-50 rounded-lg">
+                  <div class="text-sm text-slate-500">Personal Details</div>
+                  <div class="mt-2 text-sm">
+                    <div><b>Patient ID:</b> <span id="profileID">—</span></div>
+                    <div><b>National ID:</b> <span id="profileNationalID">—</span></div>
+                    <div><b>DOB:</b> <span id="profileDOB">—</span></div>
+                    <div><b>Contact:</b> <span id="profileContact">—</span></div>
+                    <div><b>Blood Type:</b> <span id="profileBlood">—</span></div>
+                  </div>
+                </div>
+
+                <div class="p-4 bg-slate-50 rounded-lg">
+                  <div class="text-sm text-slate-500">Medical Summary</div>
+                  <div class="mt-2 text-sm">
+                    <div><b>Allergies:</b> <span id="profileAllergies">—</span></div>
+                    <div><b>Chronic Conditions:</b> <span id="profileChronic">—</span></div>
+                    <div><b>Current Meds:</b> <span id="profileMeds">—</span></div>
+                  </div>
+                </div>
+
+                <div class="p-4 bg-slate-50 rounded-lg">
+                  <div class="text-sm text-slate-500">Admissions</div>
+                  <div id="profileAdmissions" class="mt-2 text-sm space-y-2"></div>
+                </div>
+              </div>
+
+              <div class="mt-6 grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div class="p-4 bg-white rounded-lg border">
+                  <h3 class="font-semibold">Visit History</h3>
+                  <div id="profileVisits" class="mt-3 space-y-3 text-sm"></div>
+                </div>
+
+                <div class="p-4 bg-white rounded-lg border">
+                  <h3 class="font-semibold">Prescriptions & Lab Results</h3>
+                  <div id="profilePrescriptions" class="mt-3 space-y-3 text-sm"></div>
+                </div>
+              </div>
+            </section>
+
+            <!-- Diagnosis -->
+            <section id="page-diagnosis" class="hidden bg-white rounded-lg p-5 card-shadow">
+              <h2 class="text-lg font-semibold">Add Diagnosis</h2>
+              <p class="text-sm text-slate-500">Start by searching National ID in the top bar</p>
+              <div class="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label class="field-label">Select Patient</label>
+                  <select id="diagPatientSelect" class="w-full rounded border px-3 py-2"></select>
+                </div>
+                <div>
+                  <label class="field-label">Attending Doctor</label>
+                  <select id="diagDoctorSelect" class="w-full rounded border px-3 py-2"></select>
+                </div>
+                <div class="md:col-span-2">
+                  <label class="field-label">Diagnosis</label>
+                  <input id="diagDiagnosis" class="w-full rounded border px-3 py-2" placeholder="e.g. Hypertension" />
+                </div>
+                <div class="md:col-span-2">
+                  <label class="field-label">Clinical Notes</label>
+                  <textarea id="diagNotes" class="w-full rounded border px-3 py-2" rows="4" placeholder="Exam findings, recommendations..."></textarea>
+                </div>
+              </div>
+
+              <div class="mt-4 flex gap-2 justify-end">
+                <button class="px-4 py-2 border rounded" onclick="openPage('dashboard')">Cancel</button>
+                <button class="px-4 py-2 bg-mcgreen text-white rounded" onclick="saveDiagnosis()">Save Diagnosis</button>
+              </div>
+            </section>
+
+            <!-- Prescriptions -->
+            <section id="page-prescriptions" class="hidden bg-white rounded-lg p-5 card-shadow">
+              <h2 class="text-lg font-semibold">Add Prescription</h2>
+              <p class="text-sm text-slate-500">Search patient by National ID before creating prescription</p>
+
+              <div class="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label class="field-label">Patient</label>
+                  <select id="rxPatientSelect" class="w-full rounded border px-3 py-2"></select>
+                </div>
+                <div>
+                  <label class="field-label">Doctor</label>
+                  <select id="rxDoctorSelect" class="w-full rounded border px-3 py-2"></select>
+                </div>
+                <div class="md:col-span-2">
+                  <label class="field-label">Medication & Dosage</label>
+                  <input id="rxMedication" class="w-full rounded border px-3 py-2" placeholder="e.g. Amlodipine 5mg — 1 tab daily" />
+                </div>
+                <div>
+                  <label class="field-label">Duration</label>
+                  <input id="rxDuration" class="w-full rounded border px-3 py-2" placeholder="e.g. 30 days" />
+                </div>
+                <div>
+                  <label class="field-label">Notes</label>
+                  <input id="rxNotes" class="w-full rounded border px-3 py-2" placeholder="Special instructions" />
+                </div>
+              </div>
+
+              <div class="mt-4 flex gap-2 justify-end">
+                <button class="px-4 py-2 border rounded" onclick="openPage('dashboard')">Cancel</button>
+                <button class="px-4 py-2 bg-mcgreen text-white rounded" onclick="savePrescription()">Save Prescription</button>
+              </div>
+            </section>
+
+            <!-- Admin -->
+            <section id="page-admin" class="hidden bg-white rounded-lg p-5 card-shadow">
+              <h2 class="text-lg font-semibold">Admin Tools</h2>
+              <p class="text-sm text-slate-500">Hospitals & Compliance (demo)</p>
+              <div class="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div class="p-4 bg-slate-50 rounded">
+                  <h3 class="font-semibold">Hospitals</h3>
+                  <div id="adminHospitals" class="mt-3 text-sm"></div>
+                </div>
+                <div class="p-4 bg-slate-50 rounded">
+                  <h3 class="font-semibold">Compliance Reports</h3>
+                  <div class="mt-3 text-sm">NPC logs • DOH reports • PhilHealth exports (demo)</div>
+                </div>
+              </div>
+            </section>
+
+            <section id="page-settings" class="hidden bg-white rounded-lg p-5 card-shadow">
+              <h2 class="text-lg font-semibold">Settings</h2>
+              <p class="text-sm text-slate-500">Profile & system settings (demo)</p>
+            </section>
+
+          </div>
+        </main>
+
+        <!-- Right Sidebar -->
+        <aside class="col-span-12 lg:col-span-3 xl:col-span-3 hidden xl:block">
+          <div class="sticky top-28 space-y-4">
+            <div class="bg-white rounded-lg p-4 card-shadow">
+              <div class="flex justify-between items-center"><h4 class="font-semibold">Quick Actions</h4><div class="text-xs text-slate-400">Shortcuts</div></div>
+              <div class="mt-3 grid gap-2">
+                <button class="w-full px-3 py-2 rounded bg-mcgreen text-white" onclick="openAddPatientModal()">+ Add Patient</button>
+                <button class="w-full px-3 py-2 rounded bg-white border" onclick="openPage('appointments')">Create Appointment</button>
+                <button class="w-full px-3 py-2 rounded bg-white border" onclick="openPage('prescriptions')">Add Prescription</button>
+              </div>
+            </div>
+
+            <div class="bg-white rounded-lg p-4 card-shadow">
+              <h4 class="font-semibold">Notifications</h4>
+              <div id="notifList" class="mt-3 text-sm"></div>
+            </div>
+          </div>
+        </aside>
+
+      </div>
+    </div>
+  </div>
+
+  <!-- Preview Modal (appears when national ID found) -->
+  <div id="previewModal" class="fixed inset-0 z-50 hidden items-center justify-center modal-backdrop">
+    <div class="bg-white rounded-lg w-full max-w-md p-6">
+      <div class="flex items-start gap-4">
+        <div id="previewAvatar" class="w-16 h-16 rounded-full bg-slate-100 flex items-center justify-center text-2xl font-semibold text-slate-600">JD</div>
+        <div class="flex-1">
+          <h3 id="previewName" class="text-xl font-semibold">—</h3>
+          <div id="previewMeta" class="text-sm text-slate-500">—</div>
+          <div id="previewAddress" class="mt-2 text-sm text-slate-600">—</div>
+          <div class="mt-3 text-sm">
+            <div class="text-slate-500">Admissions</div>
+            <div id="previewAdmissions" class="mt-2 text-sm text-slate-600">—</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="mt-6 flex justify-end gap-2">
+        <button id="previewCancel" class="px-4 py-2 border rounded">Cancel</button>
+        <button id="previewProceed" class="px-4 py-2 bg-mcgreen text-white rounded">Proceed to Records</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Add Patient Modal (includes National ID) -->
+  <div id="addPatientModal" class="fixed inset-0 z-40 hidden items-center justify-center modal-backdrop">
+    <div class="bg-white rounded-lg w-full max-w-3xl p-6">
+      <div class="flex justify-between items-center mb-4">
+        <h3 class="text-lg font-semibold">Add / Register Patient</h3>
+        <button id="closeAddPatient" class="text-slate-500">✕</button>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div>
+          <label class="field-label">National ID</label>
+          <input id="new_national_id" class="w-full rounded border px-3 py-2" placeholder="e.g. P-20250001" />
+        </div>
+        <div>
+          <label class="field-label">Full Name</label>
+          <input id="new_fullname" class="w-full rounded border px-3 py-2" placeholder="Juan Dela Cruz" />
+        </div>
+        <div>
+          <label class="field-label">DOB</label>
+          <input id="new_dob" type="date" class="w-full rounded border px-3 py-2" />
+        </div>
+        <div>
+          <label class="field-label">Contact</label>
+          <input id="new_contact" class="w-full rounded border px-3 py-2" placeholder="09xx-xxx-xxxx" />
+        </div>
+        <div>
+          <label class="field-label">Address</label>
+          <input id="new_address" class="w-full rounded border px-3 py-2" placeholder="Barangay, City, Province" />
+        </div>
+        <div>
+          <label class="field-label">Blood Type</label>
+          <input id="new_blood" class="w-full rounded border px-3 py-2" placeholder="e.g. O+" />
+        </div>
+
+        <div class="md:col-span-2">
+          <label class="field-label">Medical History (comma-separated)</label>
+          <input id="new_history" class="w-full rounded border px-3 py-2" placeholder="Hypertension, Diabetes" />
+        </div>
+
+        <div class="md:col-span-2">
+          <label class="field-label">Previous Admissions (format: Hospital|Date|Reason ; separate with ; )</label>
+          <input id="new_admissions" class="w-full rounded border px-3 py-2" placeholder="St. Luke's|2024-05-12|Surgery; City Hosp|2023-11-02|Observation" />
+        </div>
+      </div>
+
+      <div class="mt-4 flex justify-end gap-2">
+        <button id="cancelAddPatient" class="px-4 py-2 border rounded">Cancel</button>
+        <button id="saveAddPatient" class="px-4 py-2 bg-mcgreen text-white rounded">Save Patient</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Admit Modal -->
+  <div id="admitModal" class="fixed inset-0 z-40 hidden items-center justify-center modal-backdrop">
+    <div class="bg-white rounded-lg w-full max-w-md p-6">
+      <div class="flex justify-between items-center mb-4">
+        <h3 class="text-lg font-semibold">Admit Patient</h3>
+        <button onclick="document.getElementById('admitModal').classList.add('hidden')" class="text-slate-500">✕</button>
+      </div>
+      <div>
+        <label class="field-label">Hospital</label>
+        <input id="admit_hospital" class="w-full rounded border px-3 py-2" placeholder="Hospital name" />
+      </div>
+      <div class="grid grid-cols-2 gap-4 mt-3">
+        <div>
+          <label class="field-label">Date</label>
+          <input id="admit_date" type="date" class="w-full rounded border px-3 py-2" />
+        </div>
+        <div>
+          <label class="field-label">Reason</label>
+          <input id="admit_reason" class="w-full rounded border px-3 py-2" placeholder="Reason for admission" />
+        </div>
+      </div>
+      <div class="mt-4 flex justify-end gap-2">
+        <button class="px-4 py-2 border rounded" onclick="document.getElementById('admitModal').classList.add('hidden')">Cancel</button>
+        <button class="px-4 py-2 bg-mcgreen text-white rounded" onclick="saveAdmission()">Save Admission</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="toastContainer" class="fixed bottom-6 right-6 space-y-2 z-50"></div>
+
+  <script>
+    /**************
+     * Mock Data (expandable)
+     **************/
+    let patients = [
+      {
+        id: 'MC-000124',
+        nationalId: 'P-20250001',
+        fullname: 'Dexter Jhon Daguasi',
+        dob: '1990-07-15',
+        contact: '09171234567',
+        address: 'Barangay Poblacion, San Juan, Ilocos Sur',
+        blood: 'A+',
+        allergies: 'Peanuts',
+        chronic: 'Hypertension',
+        meds: 'Amlodipine 5mg',
+        admissions: [
+          { hospital: "Ilocos Sur Provincial Hospital", date: '2024-05-12', reason: 'Appendectomy' }
+        ],
+        visits: [
+          { date: '2025-09-12', doctor: 'Dr. Maria Santos', notes: 'Follow-up check-up — BP stable' }
+        ],
+        prescriptions: [
+          { date: '2025-09-12', doctor: 'Dr. Maria Santos', medication: 'Amlodipine 5mg', duration: '30 days', notes: 'Take at night' }
+        ]
+      }
+      // you can add more objects here to expand the DB
+    ];
+
+    let doctors = [
+      { id: 'D-001', name: 'Dr. Maria Santos', specialty: 'Cardiology' },
+      { id: 'D-002', name: 'Dr. Carlo Reyes', specialty: 'General Medicine' },
+      { id: 'D-003', name: 'Dr. Marlo Gomez', specialty: 'Endocrinology' }
+    ];
+
+    let hospitals = [
+      { name: "St. Luke's", level: 3 },
+      { name: "Central Regional Hospital", level: 2 },
+      { name: "Riverside Clinic", level: 1 }
+    ];
+
+    let appointments = [];
+    let notifications = [
+      { text: 'PhilHealth claim processed for Dexter D.', time: '1h' }
+    ];
+
+    /****************
+     * Helpers & Rendering
+     ****************/
+    function setStats() {
+      document.getElementById('statPatients').innerText = patients.length;
+      document.getElementById('statAppts').innerText = appointments.length;
+      document.getElementById('statClaims').innerText = '14';
+      document.getElementById('totalPatients').innerText = patients.length;
+      renderActivity();
+      renderPatientsTable();
+      renderNotifications();
+      renderAdminHospitals();
+      populateDiagForm();
+      populateRxForm();
+      renderDoctorsView();
+    }
+
+    function renderActivity() {
+      const feed = document.getElementById('activityFeed');
+      feed.innerHTML = '';
+      const items = [];
+      patients.forEach(p => {
+        (p.visits || []).forEach(v => items.push({ type: 'visit', patient: p.fullname, date: v.date, notes: v.notes }));
+        (p.prescriptions || []).forEach(r => items.push({ type: 'rx', patient: p.fullname, date: r.date, notes: r.medication }));
+      });
+      items.sort((a,b)=> b.date.localeCompare(a.date));
+      items.slice(0,6).forEach(it => {
+        const el = document.createElement('article');
+        el.className = 'bg-white rounded-lg p-4 card-shadow';
+        el.innerHTML = `
+          <div class="flex gap-4">
+            <div class="w-14 h-14 rounded-full bg-slate-100 flex items-center justify-center text-slate-500">${it.patient.split(' ').map(n=>n[0]).slice(0,2).join('')}</div>
+            <div class="flex-1">
+              <div class="flex justify-between">
+                <div><div class="font-semibold">${it.patient}</div><div class="text-sm text-slate-400">${it.type === 'visit' ? 'Visit' : 'Prescription'} • ${it.date}</div></div>
+              </div>
+              <p class="mt-3 text-sm text-slate-600">${it.notes}</p>
+            </div>
+          </div>
+        `;
+        feed.appendChild(el);
+      });
+    }
+
+    function renderPatientsTable(query='') {
+      const tbody = document.getElementById('patientsTableBody');
+      if(!tbody) return;
+      tbody.innerHTML = '';
+      const q = query || (document.getElementById('patientSearch')?.value?.toLowerCase()) || '';
+      patients.forEach(p => {
+        if(q && !`${p.fullname} ${p.id} ${p.nationalId}`.toLowerCase().includes(q)) return;
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td class="p-3 text-sm">${p.id}</td>
+          <td class="p-3 text-sm">${p.fullname}</td>
+          <td class="p-3 text-sm">${calcAge(p.dob)}</td>
+          <td class="p-3 text-sm">${(p.visits || [])[p.visits.length-1]?.date || '—'}</td>
+          <td class="p-3 text-sm">${(p.visits || [])[p.visits.length-1]?.doctor || '—'}</td>
+          <td class="p-3 text-sm"><button class="px-3 py-1 rounded bg-mcblue text-white text-xs" onclick="selectPatientAndOpen('${p.id}')">Open</button></td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+
+    function calcAge(dob) {
+      if(!dob) return '—';
+      const b = new Date(dob);
+      const diff = Date.now() - b.getTime();
+      return Math.floor(diff / (1000*60*60*24*365.25));
+    }
+
+    function renderNotifications() {
+      const list = document.getElementById('notifList');
+      if(!list) return;
+      list.innerHTML = '';
+      notifications.forEach(n => {
+        const d = document.createElement('div');
+        d.className = 'mb-2';
+        d.innerHTML = `<div class="text-sm">${n.text}</div><div class="text-xs text-slate-400">${n.time}</div>`;
+        list.appendChild(d);
+      });
+      document.getElementById('notifCount').innerText = notifications.length;
+    }
+
+    function selectPatientAndOpen(id) {
+      sessionStorage.setItem('currentPatientId', id);
+      loadCurrentPatient();
+      openPage('patient-profile');
+    }
+
+    /****************
+     * Global National ID Search (with preview modal)
+     ****************/
+    function globalSearchPatient() {
+      clearSearchMessage();
+      const id = document.getElementById('globalNationalId').value.trim();
+      if(!id) { toast('Please enter a National ID'); return; }
+      const p = patients.find(x => x.nationalId && x.nationalId.toLowerCase() === id.toLowerCase());
+      if(p) {
+        showPreviewModal(p);
+      } else {
+        // show message exactly as required
+        const msg = 'No records found. Patient has not been admitted in any hospital.';
+        document.getElementById('searchMessage').innerText = msg;
+        document.getElementById('searchMessage').classList.remove('hidden');
+        toast(msg);
+      }
+    }
+
+    function clearSearchMessage() {
+      const el = document.getElementById('searchMessage');
+      if(el) { el.innerText = ''; el.classList.add('hidden'); }
+    }
+
+    function showPreviewModal(p) {
+      // avatar initials
+      const initials = p.fullname.split(' ').map(n=>n[0]).slice(0,2).join('').toUpperCase() || 'NA';
+      document.getElementById('previewAvatar').innerText = initials;
+      document.getElementById('previewName').innerText = p.fullname;
+      const age = calcAge(p.dob);
+      document.getElementById('previewMeta').innerText = `${p.dob || '—'} • Age: ${age === '—' ? '—' : age}`;
+      document.getElementById('previewAddress').innerText = p.address || '—';
+      // admissions list
+      const admEl = document.getElementById('previewAdmissions');
+      admEl.innerHTML = '';
+      if(!p.admissions || p.admissions.length === 0) {
+        admEl.innerText = 'No previous admissions found';
+      } else {
+        p.admissions.forEach(a => {
+          const d = document.createElement('div');
+          d.innerHTML = `<b>${a.hospital}</b> — ${a.date} — ${a.reason}`;
+          admEl.appendChild(d);
+        });
+      }
+      // show modal
+      document.getElementById('previewModal').classList.remove('hidden');
+      // wire proceed/cancel buttons (ensure no duplicate listeners)
+      document.getElementById('previewCancel').onclick = () => document.getElementById('previewModal').classList.add('hidden');
+      document.getElementById('previewProceed').onclick = () => {
+        sessionStorage.setItem('currentPatientId', p.id);
+        document.getElementById('previewModal').classList.add('hidden');
+        toast('Loaded patient: ' + p.fullname);
+        loadCurrentPatient();
+        openPage('patient-profile');
+      };
+    }
+
+    /****************
+     * Load current patient into profile and form selects
+     ****************/
+    function loadCurrentPatient() {
+      const pid = sessionStorage.getItem('currentPatientId');
+      if(!pid) return;
+      const p = patients.find(x=>x.id === pid);
+      if(!p) { toast('Selected patient not found'); return; }
+
+      // profile
+      document.getElementById('profileFullName').innerText = p.fullname;
+      document.getElementById('profileID').innerText = p.id;
+      document.getElementById('profileNationalID').innerText = p.nationalId || '—';
+      document.getElementById('profileDOB').innerText = p.dob || '—';
+      document.getElementById('profileContact').innerText = p.contact || '—';
+      document.getElementById('profileAddress').innerText = p.address || '—';
+      document.getElementById('profileBlood').innerText = p.blood || '—';
+      document.getElementById('profileAllergies').innerText = p.allergies || '—';
+      document.getElementById('profileChronic').innerText = p.chronic || '—';
+      document.getElementById('profileMeds').innerText = p.meds || '—';
+
+      // admissions
+      const adm = document.getElementById('profileAdmissions');
+      adm.innerHTML = '';
+      (p.admissions || []).forEach(a=>{
+        const el = document.createElement('div');
+        el.innerHTML = `<div><b>${a.hospital}</b> — ${a.date} — <span class="text-slate-600">${a.reason}</span></div>`;
+        adm.appendChild(el);
+      });
+
+      // visits & rx
+      const visits = document.getElementById('profileVisits');
+      visits.innerHTML = '';
+      (p.visits || []).forEach(v=>{
+        const el = document.createElement('div');
+        el.innerHTML = `<div><b>${v.date}</b> — ${v.doctor}</div><div class="text-slate-600">${v.notes}</div>`;
+        visits.appendChild(el);
+      });
+
+      const rx = document.getElementById('profilePrescriptions');
+      rx.innerHTML = '';
+      (p.prescriptions || []).forEach(r=>{
+        const el = document.createElement('div');
+        el.innerHTML = `<div><b>${r.date}</b> — ${r.doctor} — ${r.medication} (${r.duration})</div><div class="text-slate-600">${r.notes}</div>`;
+        rx.appendChild(el);
+      });
+
+      // preselect in diagnosis/prescription selects
+      populateDiagForm();
+      populateRxForm();
+      const diagSel = document.getElementById('diagPatientSelect');
+      const rxSel = document.getElementById('rxPatientSelect');
+      if(diagSel) diagSel.value = p.id;
+      if(rxSel) rxSel.value = p.id;
+    }
+
+    /****************
+     * Save Diagnosis & Prescription
+     ****************/
+    function saveDiagnosis() {
+      const pid = document.getElementById('diagPatientSelect').value;
+      const doc = document.getElementById('diagDoctorSelect').value;
+      const diagnosis = document.getElementById('diagDiagnosis').value.trim();
+      const notes = document.getElementById('diagNotes').value.trim();
+      if(!pid || !diagnosis) return toast('Please select patient and enter diagnosis');
+      const p = patients.find(x=>x.id === pid);
+      if(!p) return toast('Patient not found');
+      const today = new Date().toISOString().slice(0,10);
+      p.visits = p.visits || [];
+      p.visits.push({ date: today, doctor: doc, notes: diagnosis + (notes ? (' — '+notes) : '') });
+      toast('Diagnosis saved');
+      sessionStorage.setItem('currentPatientId', p.id);
+      loadCurrentPatient();
+      openPage('patient-profile');
+    }
+
+    function savePrescription() {
+      const pid = document.getElementById('rxPatientSelect').value;
+      const doc = document.getElementById('rxDoctorSelect').value;
+      const medication = document.getElementById('rxMedication').value.trim();
+      const duration = document.getElementById('rxDuration').value.trim();
+      const notes = document.getElementById('rxNotes').value.trim();
+      if(!pid || !medication) return toast('Please select patient and enter medication');
+      const p = patients.find(x=>x.id === pid);
+      if(!p) return toast('Patient not found');
+      const today = new Date().toISOString().slice(0,10);
+      p.prescriptions = p.prescriptions || [];
+      p.prescriptions.push({ date: today, doctor: doc, medication, duration, notes });
+      p.meds = p.meds ? (p.meds + ', ' + medication) : medication;
+      toast('Prescription saved');
+      sessionStorage.setItem('currentPatientId', p.id);
+      loadCurrentPatient();
+      openPage('patient-profile');
+    }
+
+    /****************
+     * Add Patient (with National ID duplicate check)
+     ****************/
+    function openAddPatientModal() {
+      document.getElementById('addPatientModal').classList.remove('hidden');
+      clearAddPatientForm();
+    }
+    function openAddPatientModalWithId(nationalId = '') {
+      document.getElementById('addPatientModal').classList.remove('hidden');
+      clearAddPatientForm();
+      if(nationalId) document.getElementById('new_national_id').value = nationalId;
+      // placeholder remains Juan Dela Cruz
+    }
+    function clearAddPatientForm() {
+      ['new_national_id','new_fullname','new_dob','new_contact','new_address','new_blood','new_history','new_admissions'].forEach(id => {
+        const el = document.getElementById(id);
+        if(el) el.value = '';
+      });
+    }
+    document.getElementById('closeAddPatient').addEventListener('click', ()=> document.getElementById('addPatientModal').classList.add('hidden'));
+    document.getElementById('cancelAddPatient').addEventListener('click', ()=> document.getElementById('addPatientModal').classList.add('hidden'));
+
+    document.getElementById('saveAddPatient').addEventListener('click', ()=>{
+      const nationalId = (document.getElementById('new_national_id').value || '').trim();
+      const fullname = (document.getElementById('new_fullname').value || '').trim() || 'Unnamed';
+      const dob = document.getElementById('new_dob').value || '';
+      const contact = document.getElementById('new_contact').value || '';
+      const address = document.getElementById('new_address').value || '';
+      const blood = document.getElementById('new_blood').value || '';
+      const history = document.getElementById('new_history').value || '';
+      const admissionsRaw = document.getElementById('new_admissions').value || '';
+      const admissions = admissionsRaw ? admissionsRaw.split(';').map(s=>{
+        const [hospital,date,reason] = s.split('|').map(x=>x?.trim()||'');
+        return { hospital, date, reason };
+      }) : [];
+
+      if(!nationalId) { toast('National ID is required.'); return; }
+
+      // check duplicates by nationalId
+      const existing = patients.find(p => p.nationalId && p.nationalId.toLowerCase() === nationalId.toLowerCase());
+      if(existing) {
+        toast('A patient with this National ID already exists. Opening existing record.');
+        sessionStorage.setItem('currentPatientId', existing.id);
+        document.getElementById('addPatientModal').classList.add('hidden');
+        loadCurrentPatient();
+        openPage('patient-profile');
+        return;
+      }
+
+      const id = 'MC-' + Math.floor(100000 + Math.random() * 900000).toString().slice(1,7);
+      const newP = {
+        id, nationalId,
+        fullname, dob, contact, address, blood,
+        allergies: 'None', chronic: history, meds: '',
+        admissions, visits: [], prescriptions: []
+      };
+      patients.push(newP);
+      document.getElementById('addPatientModal').classList.add('hidden');
+      toast('Patient registered: ' + fullname);
+      sessionStorage.setItem('currentPatientId', newP.id);
+      setStats();
+      loadCurrentPatient();
+      openPage('patient-profile');
+    });
+
+    /****************
+     * Admit patient (add admission entry)
+     ****************/
+    function showAdmitModal() {
+      const pid = sessionStorage.getItem('currentPatientId');
+      if(!pid) { toast('Search/select a patient first'); return; }
+      document.getElementById('admitModal').classList.remove('hidden');
+      document.getElementById('admit_date').value = new Date().toISOString().slice(0,10);
+      document.getElementById('admit_hospital').value = '';
+      document.getElementById('admit_reason').value = '';
+    }
+
+    function saveAdmission() {
+      const pid = sessionStorage.getItem('currentPatientId');
+      if(!pid) { toast('No patient selected'); return; }
+      const p = patients.find(x=>x.id === pid);
+      if(!p) { toast('Patient not found'); return; }
+      const hospital = (document.getElementById('admit_hospital').value || '').trim() || 'Unknown Hospital';
+      const date = document.getElementById('admit_date').value || new Date().toISOString().slice(0,10);
+      const reason = (document.getElementById('admit_reason').value || '').trim() || 'Admission';
+      p.admissions = p.admissions || [];
+      p.admissions.push({ hospital, date, reason });
+      document.getElementById('admitModal').classList.add('hidden');
+      toast('Admission recorded for ' + p.fullname);
+      loadCurrentPatient();
+      setStats();
+    }
+
+    /****************
+     * Populate selects & admin views
+     ****************/
+    function populateDiagForm() {
+      const sel = document.getElementById('diagPatientSelect');
+      if(!sel) return;
+      sel.innerHTML = '';
+      patients.forEach(p => sel.innerHTML += `<option value="${p.id}">${p.fullname} (${p.nationalId || 'no-NID'})</option>`);
+      const ds = document.getElementById('diagDoctorSelect'); if(ds) { ds.innerHTML = ''; doctors.forEach(d => ds.innerHTML += `<option>${d.name}</option>`); }
+    }
+
+    function populateRxForm() {
+      const sel = document.getElementById('rxPatientSelect');
+      if(!sel) return;
+      sel.innerHTML = '';
+      patients.forEach(p => sel.innerHTML += `<option value="${p.id}">${p.fullname} (${p.nationalId || 'no-NID'})</option>`);
+      const ds = document.getElementById('rxDoctorSelect'); if(ds) { ds.innerHTML = ''; doctors.forEach(d => ds.innerHTML += `<option>${d.name}</option>`); }
+    }
+
+    function renderDoctorsView() {
+      const assigned = document.getElementById('docAssigned');
+      if(assigned) assigned.innerHTML = doctors.map(d=>`<div><b>${d.name}</b> — ${d.specialty}</div>`).join('');
+      const dl = document.getElementById('docList'); if(dl) dl.innerHTML = doctors.map(d=>`<div class="mb-2">${d.name} — ${d.specialty}</div>`).join('');
+    }
+
+    function renderAdminHospitals() {
+      const ah = document.getElementById('adminHospitals');
+      if(!ah) return;
+      ah.innerHTML = hospitals.map(h=>`<div class="mb-2"><b>${h.name}</b> — Level ${h.level}</div>`).join('');
+    }
+
+    /****************
+     * Router & Utilities
+     ****************/
+    function hideAllPages(){
+      document.querySelectorAll('[id^="page-"]').forEach(s => s.classList.add('hidden'));
+    }
+    function openPage(page){
+      hideAllPages();
+      const id = 'page-' + page.replace('page-','');
+      const section = document.getElementById(id);
+      if(section) section.classList.remove('hidden');
+      else document.getElementById('page-dashboard').classList.remove('hidden');
+      if(page === 'patients') renderPatientsTable();
+      if(page === 'patient-profile') loadCurrentPatient();
+      if(page === 'diagnosis') populateDiagForm();
+      if(page === 'prescriptions') populateRxForm();
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    function toast(msg, timeout=3000){
+      const cont = document.getElementById('toastContainer');
+      const el = document.createElement('div');
+      el.className = 'bg-mcgreen text-white px-4 py-2 rounded shadow';
+      el.innerText = msg;
+      cont.appendChild(el);
+      setTimeout(()=> el.remove(), timeout);
+    }
+
+    function exportDemo(){ toast('Export started (demo).'); }
+
+    // wire search button & enter
+    document.getElementById('searchBtn').addEventListener('click', globalSearchPatient);
+    document.getElementById('globalNationalId').addEventListener('keydown',(e)=>{ if(e.key==='Enter') globalSearchPatient(); });
+    document.getElementById('registerBtn').addEventListener('click', ()=> openAddPatientModalWithId(document.getElementById('globalNationalId').value.trim()));
+
+    // initial render
+    setTimeout(()=> {
+      setStats();
+      // no default selection — user searches
+    }, 150);
+  </script>
+</body>
+</html>
